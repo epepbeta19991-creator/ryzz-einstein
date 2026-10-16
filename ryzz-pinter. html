@@ -1,0 +1,374 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>RYZZ EINSTEIN CHESS</title>
+
+<style>
+:root {
+  --bg:#080d18;
+  --panel:#111a2b;
+  --blue:#57d8ff;
+  --text:#edf5ff;
+  --muted:#8b9bb6;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;padding:18px 12px 30px;
+  color:var(--text);font-family:system-ui,Arial,sans-serif;
+  background:radial-gradient(ellipse at top,#183052 0%,#080d18 65%);
+}
+.app{max-width:470px;margin:auto}
+header{text-align:center;padding:12px 0 20px}
+.logo{font-size:35px;filter:drop-shadow(0 0 12px #56d8ff77)}
+h1{font-size:25px;letter-spacing:2px;margin:7px 0}
+.subtitle{font-size:12px;color:var(--muted);letter-spacing:2px}
+.panel{
+  background:#111a2bee;border:1px solid #283852;
+  border-radius:20px;padding:14px;
+  box-shadow:0 15px 40px #0005;
+}
+.turnrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:13px}
+.turn{font-weight:750;font-size:13px}
+.pill{background:#1c2b43;border:1px solid #344a69;border-radius:30px;padding:8px 11px;font-size:11px;color:var(--blue)}
+#notice{
+  min-height:39px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:12px;border-radius:10px;
+  background:#17263a;color:#b8cce6;font-size:13px;text-align:center;padding:8px;
+}
+#notice.check{background:#501d2a;color:#ffb5c0;animation:pulse .7s infinite alternate}
+@keyframes pulse{to{box-shadow:0 0 18px #ff395966}}
+.board{
+  display:grid;grid-template-columns:repeat(8,1fr);
+  width:100%;aspect-ratio:1;border:3px solid #304663;
+  border-radius:5px;overflow:hidden;box-shadow:0 8px 25px #0007;
+}
+.square{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  padding:0;border:0;border-radius:0;aspect-ratio:1;
+  font-size:clamp(25px,8vw,43px);line-height:1;
+  cursor:pointer;touch-action:manipulation;
+}
+.light{background:#d8e4ed}
+.dark{background:#607e9c}
+.square.selected{background:#55d8ff!important}
+.square.last{box-shadow:inset 0 0 0 4px #f5d76e}
+.square.kingcheck{background:#e85c70!important}
+.square.legal::after{
+  content:"";position:absolute;width:25%;height:25%;border-radius:50%;
+  background:#12273c88;pointer-events:none;
+}
+.square.capture::after{
+  content:"";position:absolute;inset:4px;border:4px solid #10263b99;
+  border-radius:50%;pointer-events:none;
+}
+.piece{
+  position:relative;z-index:1;
+  filter:drop-shadow(0 2px 1px #0006);
+  pointer-events:none;
+}
+.whitepiece{color:#fff;text-shadow:0 1px 2px #243246,0 0 1px #172238}
+.blackpiece{color:#172335;text-shadow:0 1px 1px #fff4}
+.coords{
+  position:absolute;left:3px;top:2px;font-size:9px;
+  color:#14253a99;pointer-events:none;
+}
+.info{display:flex;justify-content:space-between;gap:8px;margin-top:13px;font-size:12px;color:var(--muted)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+button.action{
+  border:1px solid #344a69;background:#1b2a40;color:white;
+  padding:13px 8px;border-radius:12px;font-size:13px;font-weight:700;
+  cursor:pointer;
+}
+button.primary{background:var(--blue);color:#071322;border-color:var(--blue)}
+button.action:active{transform:scale(.98)}
+.tip{text-align:center;font-size:11px;color:#7185a4;line-height:1.7;margin-top:17px}
+.overlay{
+  position:fixed;inset:0;background:#030711c9;z-index:5;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.overlay.show{display:flex}
+.modal{
+  width:100%;max-width:340px;text-align:center;background:#121e32;
+  border:1px solid #3b5275;border-radius:22px;padding:27px;
+  box-shadow:0 0 55px #48cfff22;
+}
+.modal .emoji{font-size:48px}
+.modal h2{margin:10px 0}
+.modal p{color:#aabbd4;font-size:14px}
+@media(min-width:500px){
+ .square{font-size:43px}
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <header>
+    <div class="logo">♟️</div>
+    <h1>RYZZ EINSTEIN</h1>
+    <div class="subtitle">CHESS ARENA • TWO PLAYERS</div>
+  </header>
+
+  <main class="panel">
+    <div class="turnrow">
+      <div class="turn" id="turn">⚪ Giliran Putih</div>
+      <div class="pill" id="moveCount">LANGKAH 1</div>
+    </div>
+
+    <div id="notice">Pilih bidak untuk memulai permainan.</div>
+    <div id="board" class="board" aria-label="Papan catur"></div>
+
+    <div class="info">
+      <span id="state">Pertandingan berlangsung</span>
+      <span id="lastMove">Belum ada langkah</span>
+    </div>
+
+    <div class="actions">
+      <button class="action primary" id="restart">↻ GAME BARU</button>
+      <button class="action" id="undo">↶ URUNGKAN</button>
+    </div>
+  </main>
+
+  <div class="tip">
+    SENTUH BIDAK → PILIH KOTAK TUJUAN<br>
+    Putih bergerak dulu • Tidak ada AI
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="emoji" id="endEmoji">🏆</div>
+    <h2 id="endTitle">Permainan selesai</h2>
+    <p id="endText"></p>
+    <button class="action primary" id="playAgain" style="width:100%">MAIN LAGI</button>
+  </div>
+</div>
+
+<!-- Mesin aturan catur -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+<script>
+const $ = id => document.getElementById(id);
+
+if (typeof Chess === "undefined") {
+  $("notice").textContent =
+    "Gagal memuat aturan catur. Periksa koneksi internet lalu muat ulang halaman.";
+  throw new Error("Chess.js gagal dimuat");
+}
+
+let game = new Chess();
+let selected = null;
+let legalMoves = [];
+let lastSquares = [];
+let ended = false;
+
+const symbols = {
+  w:{k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"},
+  b:{k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"}
+};
+
+function squareName(file, rank){
+  return "abcdefgh"[file] + rank;
+}
+
+function render(){
+  const board = $("board");
+  board.innerHTML = "";
+
+  const checkSquare = game.in_check()
+    ? Object.entries(game.board().flat()).length && findKing(game.turn())
+    : null;
+
+  for(let rank=7;rank>=0;rank--){
+    for(let file=0;file<8;file++){
+      const name=squareName(file,rank+1);
+      const piece=game.get(name);
+      const cell=document.createElement("button");
+
+      cell.type="button";
+      cell.className="square "+((rank+file)%2===0?"light":"dark");
+      cell.setAttribute("aria-label",name);
+
+      if(lastSquares.includes(name)) cell.classList.add("last");
+      if(name===selected) cell.classList.add("selected");
+      if(name===checkSquare) cell.classList.add("kingcheck");
+
+      const move=legalMoves.find(m=>m.to===name);
+      if(move){
+        cell.classList.add(piece?"capture":"legal");
+      }
+
+      if(file===0){
+        const coord=document.createElement("span");
+        coord.className="coords";
+        coord.textContent=rank+1;
+        cell.appendChild(coord);
+      }
+
+      if(piece){
+        const span=document.createElement("span");
+        span.className="piece "+(piece.color==="w"?"whitepiece":"blackpiece");
+        span.textContent=symbols[piece.color][piece.type];
+        cell.appendChild(span);
+      }
+
+      cell.addEventListener("click",()=>tapSquare(name));
+      board.appendChild(cell);
+    }
+  }
+
+  $("turn").textContent=game.turn()==="w"?"⚪ Giliran Putih":"⚫ Giliran Hitam";
+  $("moveCount").textContent="LANGKAH "+(Math.floor(game.history().length/2)+1);
+
+  const history=game.history();
+  $("lastMove").textContent=history.length?"Terakhir: "+history[history.length-1]:"Belum ada langkah";
+
+  updateStatus();
+}
+
+function findKing(color){
+  const b=game.board();
+  for(let r=0;r<8;r++){
+    for(let f=0;f<8;f++){
+      const p=b[r][f];
+      if(p && p.type==="k" && p.color===color){
+        return squareName(f,r+1);
+      }
+    }
+  }
+  return null;
+}
+
+function tapSquare(name){
+  if(ended)return;
+
+  const piece=game.get(name);
+
+  if(selected && legalMoves.some(m=>m.to===name)){
+    playMove(selected,name);
+    return;
+  }
+
+  if(piece && piece.color===game.turn()){
+    selected=name;
+    legalMoves=game.moves({square:name,verbose:true});
+    render();
+    return;
+  }
+
+  selected=null;
+  legalMoves=[];
+  render();
+}
+
+function playMove(from,to){
+  const piece=game.get(from);
+  let move;
+
+  // Promosi otomatis menjadi ratu.
+  if(piece && piece.type==="p" && (to.endsWith("8")||to.endsWith("1"))){
+    move=game.move({from,to,promotion:"q"});
+  }else{
+    move=game.move({from,to});
+  }
+
+  if(!move)return;
+
+  lastSquares=[from,to];
+  selected=null;
+  legalMoves=[];
+
+  const notice=$("notice");
+  notice.classList.remove("check");
+
+  if(game.in_checkmate()){
+    ended=true;
+    notice.textContent="♔ SKAKMAT! Permainan selesai.";
+    notice.classList.add("check");
+    render();
+    showEnd("🏆","SKAKMAT!",(game.turn()==="w"?"Hitam":"Putih")+" menang!");
+    return;
+  }
+
+  if(game.in_check()){
+    notice.textContent="⚡ SKAK! Raja "+(game.turn()==="w"?"Putih":"Hitam")+" terancam!";
+    notice.classList.add("check");
+  }else if(game.in_stalemate()){
+    notice.textContent="🤝 STALEMATE! Permainan remis.";
+  }else if(game.in_draw()){
+    notice.textContent="🤝 REMIS! Permainan berakhir seri.";
+  }else{
+    notice.textContent="Langkah "+move.san+" berhasil.";
+  }
+
+  if(game.game_over()){
+    ended=true;
+    if(!game.in_checkmate()){
+      showEnd("🤝","PERMAINAN REMIS","Tidak ada pemenang pada pertandingan ini.");
+    }
+  }
+
+  render();
+
+  // Pertahankan pesan skak setelah render.
+  if(game.in_check() && !game.in_checkmate()){
+    notice.textContent="⚡ SKAK! Raja "+(game.turn()==="w"?"Putih":"Hitam")+" terancam!";
+    notice.classList.add("check");
+  }
+}
+
+function updateStatus(){
+  if(game.in_checkmate()){
+    $("state").textContent="Skakmat";
+  }else if(game.in_draw()){
+    $("state").textContent="Remis";
+  }else if(game.in_check()){
+    $("state").textContent="⚠ Raja terancam";
+  }else{
+    $("state").textContent="Pertandingan berlangsung";
+  }
+}
+
+function showEnd(emoji,title,text){
+  $("endEmoji").textContent=emoji;
+  $("endTitle").textContent=title;
+  $("endText").textContent=text;
+  $("overlay").classList.add("show");
+}
+
+function newGame(){
+  game.reset();
+  selected=null;
+  legalMoves=[];
+  lastSquares=[];
+  ended=false;
+  $("overlay").classList.remove("show");
+  $("notice").textContent="Pilih bidak untuk memulai permainan.";
+  $("notice").classList.remove("check");
+  render();
+}
+
+$("restart").addEventListener("click",newGame);
+$("playAgain").addEventListener("click",newGame);
+
+$("undo").addEventListener("click",()=>{
+  if(ended){
+    $("overlay").classList.remove("show");
+    ended=false;
+  }
+  game.undo();
+  selected=null;
+  legalMoves=[];
+  lastSquares=[];
+  $("notice").classList.remove("check");
+  $("notice").textContent="Langkah terakhir dibatalkan.";
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
