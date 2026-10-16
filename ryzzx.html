@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RYZZ EINSTEIN CHESS</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090d18;color:white;font-family:Arial,sans-serif;text-align:center;padding:18px 10px}
+h1{font-size:27px;letter-spacing:2px;color:#83d8ff}
+p{color:#b5c6da}
+button,select{padding:11px;border:1px solid #354761;border-radius:9px;background:#17243a;color:white;margin:4px}
+#board{width:min(94vw,480px);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);margin:16px auto;border:3px solid #263d58;border-radius:4px;overflow:hidden}
+.sq{border:0;border-radius:0;margin:0;padding:0;display:flex;align-items:center;justify-content:center;font-size:clamp(25px,8vw,48px);position:relative}
+.light{background:#dbe7ed;color:#111}
+.dark{background:#57758b;color:#111}
+.selected{background:#64c7ff!important}
+.move:after{content:"";width:24%;height:24%;background:#39d98a;border-radius:50%;position:absolute}
+#status{min-height:24px;color:#80d9ff}
+</style>
+</head>
+<body>
+<h1>RYZZ EINSTEIN</h1>
+<p>CHESS ARENA • STRATEGY MODE</p>
+<select id="mode">
+<option value="local">2 Pemain • 1 HP</option>
+<option value="ai">Lawan AI</option>
+</select>
+<div id="status">Giliran Putih</div>
+<div id="board"></div>
+<button onclick="reset()">🔄 Ulangi</button>
+<button onclick="flip()">🔃 Balik Papan</button>
+<p style="font-size:12px">RYZZ EINSTEIN CHESS © 2026</p>
+<script>
+const initial=[
+"rnbqkbnr","pppppppp","........","........",
+"........","........","PPPPPPPP","RNBQKBNR"
+];
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",
+k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board,turn,selected,legal,reverse=false,over=false;
+const el=id=>document.getElementById(id);
+function reset(){
+board=initial.map(r=>r.split("").map(x=>x==="."?null:x));
+turn="w";selected=null;legal=[];over=false;render();
+}
+function color(p){return p===p.toUpperCase()?"w":"b"}
+function inside(r,c){return r>=0&&r<8&&c>=0&&c<8}
+function moves(r,c){
+let p=board[r][c];if(!p)return[];
+let white=color(p)==="w",t=p.toLowerCase(),out=[];
+const add=(a,b)=>{if(!inside(a,b))return false;let q=board[a][b];
+if(q&&color(q)===(white?"w":"b"))return false;
+out.push([a,b]);return !q};
+if(t==="p"){
+let d=white?-1:1,start=white?6:1;
+if(inside(r+d,c)&&!board[r+d][c]){
+out.push([r+d,c]);
+if(r===start&&!board[r+2*d][c])out.push([r+2*d,c]);
+}
+for(let dc of [-1,1])if(inside(r+d,c+dc)&&board[r+d][c+dc]&&color(board[r+d][c+dc])!==color(p))out.push([r+d,c+dc]);
+}else if(t==="n"){
+for(let [a,b] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])add(r+a,c+b);
+}else{
+let dirs=[];
+if(t==="k"||t==="q"||t==="r")dirs.push([-1,0],[1,0],[0,-1],[0,1]);
+if(t==="k"||t==="q"||t==="b")dirs.push([-1,-1],[-1,1],[1,-1],[1,1]);
+for(let [dr,dc] of dirs){
+let max=t==="k"?1:7;
+for(let n=1;n<=max;n++)if(!add(r+dr*n,c+dc*n))break;
+}
+}
+return out;
+}
+function allMoves(side){
+let a=[];
+for(let r=0;r<8;r++)for(let c=0;c<8;c++)
+if(board[r][c]&&color(board[r][c])===side)
+for(let [x,y] of moves(r,c))a.push({r,c,x,y});
+return a;
+}
+function attacked(r,c,by){
+for(let i=0;i<8;i++)for(let j=0;j<8;j++){
+let p=board[i][j];
+if(p&&color(p)===by){
+if(p.toLowerCase()==="p"){
+let d=by==="w"?-1:1;
+if(i+d===r&&Math.abs(j-c)===1)return true;
+}else if(moves(i,j).some(([x,y])=>x===r&&y===c))return true;
+}
+}
+return false;
+}
+function inCheck(side){
+let k=side==="w"?"K":"k",r,c;
+for(let i=0;i<8;i++)for(let j=0;j<8;j++)if(board[i][j]===k){r=i;c=j}
+return r!==undefined&&attacked(r,c,side==="w"?"b":"w");
+}
+function safeMoves(side){
+let result=[];
+for(let m of allMoves(side)){
+let p=board[m.r][m.c],q=board[m.x][m.y];
+board[m.x][m.y]=p;board[m.r][m.c]=null;
+let safe=!inCheck(side);
+board[m.r][m.c]=p;board[m.x][m.y]=q;
+if(safe)result.push(m);
+}
+return result;
+}
+function apply(m){
+let p=board[m.r][m.c];
+board[m.x][m.y]=p;board[m.r][m.c]=null;
+if(p.toLowerCase()==="p"&&(m.x===0||m.x===7))
+board[m.x][m.y]=color(p)==="w"?"Q":"q";
+turn=turn==="w"?"b":"w";selected=null;legal=[];
+let next=safeMoves(turn);
+if(!next.length){
+over=true;
+el("status").textContent=inCheck(turn)?
+"SKAKMAT! "+(turn==="w"?"Hitam":"Putih")+" menang!":
+"REMIS! Stalemate.";
+}else el("status").textContent=(turn==="w"?"Giliran Putih":"Giliran Hitam")+(inCheck(turn)?" — SKAK!":"");
+render();
+if(!over&&el("mode").value==="ai"&&turn==="b")setTimeout(aiMove,250);
+}
+function clickSq(r,c){
+if(over)return;
+if(selected&&legal.some(m=>m.x===r&&m.y===c)){
+apply(legal.find(m=>m.x===r&&m.y===c));return;
+}
+let p=board[r][c];
+if(p&&color(p)===turn){
+selected=[r,c];
+legal=safeMoves(turn).filter(m=>m.r===r&&m.c===c);
+}else{selected=null;legal=[]}
+render();
+}
+function render(){
+let b=el("board");b.innerHTML="";
+for(let i=0;i<8;i++)for(let j=0;j<8;j++){
+let r=reverse?7-i:i,c=reverse?7-j:j;
+let s=document.createElement("button");
+s.className="sq "+((r+c)%2?"dark":"light");
+if(selected&&selected[0]===r&&selected[1]===c)s.classList.add("selected");
+if(legal.some(m=>m.x===r&&m.y===c))s.classList.add("move");
+s.textContent=board[r][c]?glyph[board[r][c]]:"";
+s.onclick=()=>clickSq(r,c);b.appendChild(s);
+}
+}
+function aiMove(){
+if(over||turn!=="b")return;
+let ms=safeMoves("b");
+if(!ms.length)return;
+const val={p:10,n:30,b:32,r:50,q:90,k:900};
+ms.sort((a,b)=>{
+let score=m=>{
+let p=board[m.x][m.y],v=p?val[p.toLowerCase()]:0;
+return v+Math.random()*12;
+};
+return score(b)-score(a);
+});
+apply(ms[0]);
+}
+function flip(){reverse=!reverse;render()}
+el("mode").onchange=reset;
+reset();
+</script>
+</body>
+</html>
